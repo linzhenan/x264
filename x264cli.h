@@ -71,14 +71,11 @@ int x264_ansi_filename( const char *filename, char *ansi_filename, int size, int
 #endif
 
 #define RETURN_IF_ERR( cond, name, ret, ... )\
-do\
+if( cond )\
 {\
-    if( cond )\
-    {\
-        x264_cli_log( name, X264_LOG_ERROR, __VA_ARGS__ );\
-        return ret;\
-    }\
-} while( 0 )
+    x264_cli_log( name, X264_LOG_ERROR, __VA_ARGS__ );\
+    return ret;\
+}
 
 #define FAIL_IF_ERR( cond, name, ... ) RETURN_IF_ERR( cond, name, -1, __VA_ARGS__ )
 

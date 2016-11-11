@@ -41,25 +41,19 @@
 
 /* For close_file() */
 #define MP4_LOG_IF_ERR( cond, ... )\
-do\
+if( cond )\
 {\
-    if( cond )\
-    {\
-        MP4_LOG_ERROR( __VA_ARGS__ );\
-    }\
-} while( 0 )
+    MP4_LOG_ERROR( __VA_ARGS__ );\
+}
 
 /* For open_file() */
 #define MP4_FAIL_IF_ERR_EX( cond, ... )\
-do\
+if( cond )\
 {\
-    if( cond )\
-    {\
-        remove_mp4_hnd( p_mp4 );\
-        MP4_LOG_ERROR( __VA_ARGS__ );\
-        return -1;\
-    }\
-} while( 0 )
+    remove_mp4_hnd( p_mp4 );\
+    MP4_LOG_ERROR( __VA_ARGS__ );\
+    return -1;\
+}
 
 /*******************/
 

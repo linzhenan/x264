@@ -2092,28 +2092,63 @@ PREDICT_16x16_H
 %endif
 
 ;-----------------------------------------------------------------------------
-; void predict_16x16_dc( pixel *src )
+; void predict_16x16_dc_core( pixel *src, int i_dc_left )
 ;-----------------------------------------------------------------------------
-%if WIN64
-DECLARE_REG_TMP 6 ; Reduces code size due to fewer REX prefixes
-%else
-DECLARE_REG_TMP 3
+%macro PRED16x16_DC_MMX 2
+%if HIGH_BIT_DEPTH
+    mova       m0, [r0 - FDEC_STRIDEB+ 0]
+    paddw      m0, [r0 - FDEC_STRIDEB+ 8]
+    paddw      m0, [r0 - FDEC_STRIDEB+16]
+    paddw      m0, [r0 - FDEC_STRIDEB+24]
+    HADDW      m0, m1
+    paddw      m0, %1
+    psrlw      m0, %2
+    SPLATW     m0, m0
+    STORE16    m0, m0, m0, m0
+%else ; !HIGH_BIT_DEPTH
+    pxor        m0, m0
+    pxor        m1, m1
+    psadbw      m0, [r0 - FDEC_STRIDE]
+    psadbw      m1, [r0 - FDEC_STRIDE + 8]
+    paddusw     m0, m1
+    paddusw     m0, %1
+    psrlw       m0, %2                      ; dc
+    pshufw      m0, m0, 0
+    packuswb    m0, m0                      ; dc in bytes
+    STORE16     m0, m0
 %endif
+%endmacro
 
-INIT_XMM
-; Returns the sum of the left pixels in r1d+r2d
-cglobal predict_16x16_dc_left_internal, 0,4
-    movzx r1d, pixel [r0-SIZEOF_PIXEL]
-    movzx r2d, pixel [r0+FDEC_STRIDEB-SIZEOF_PIXEL]
-%assign i 2*FDEC_STRIDEB
-%rep 7
-    movzx t0d, pixel [r0+i-SIZEOF_PIXEL]
-    add   r1d, t0d
-    movzx t0d, pixel [r0+i+FDEC_STRIDEB-SIZEOF_PIXEL]
-    add   r2d, t0d
-%assign i i+2*FDEC_STRIDEB
-%endrep
+INIT_MMX mmx2
+cglobal predict_16x16_dc_core, 1,2
+%if ARCH_X86_64
+    movd         m6, r1d
+    PRED16x16_DC_MMX m6, 5
+%else
+    PRED16x16_DC_MMX r1m, 5
+%endif
     RET
+
+INIT_MMX mmx2
+cglobal predict_16x16_dc_top, 1,2
+    PRED16x16_DC_MMX [pw_8], 4
+    RET
+
+INIT_MMX mmx2
+%if HIGH_BIT_DEPTH
+cglobal predict_16x16_dc_left_core, 1,2
+    movd       m0, r1m
+    SPLATW     m0, m0
+    STORE16    m0, m0, m0, m0
+    RET
+%else ; !HIGH_BIT_DEPTH
+cglobal predict_16x16_dc_left_core, 1,1
+    movd       m0, r1m
+    pshufw     m0, m0, 0
+    packuswb   m0, m0
+    STORE16    m0, m0
+    RET
+%endif
 
 %macro PRED16x16_DC 2
 %if HIGH_BIT_DEPTH
@@ -2141,11 +2176,9 @@ cglobal predict_16x16_dc_left_internal, 0,4
 %endif
 %endmacro
 
-%macro PREDICT_16x16_DC 0
-cglobal predict_16x16_dc, 1,3
-    call predict_16x16_dc_left_internal
-    lea          r1d, [r1+r2+16]
-    movd         xm3, r1d
+%macro PREDICT_16x16_DC_CORE 0
+cglobal predict_16x16_dc_core, 2,2,4
+    movd         xm3, r1m
     PRED16x16_DC xm3, 5
     RET
 
@@ -2153,11 +2186,8 @@ cglobal predict_16x16_dc_top, 1,2
     PRED16x16_DC [pw_8], 4
     RET
 
-cglobal predict_16x16_dc_left, 1,3
-    call predict_16x16_dc_left_internal
-    lea       r1d, [r1+r2+8]
-    shr       r1d, 4
-    movd      xm0, r1d
+cglobal predict_16x16_dc_left_core, 1,2
+    movd      xm0, r1m
     SPLATW     m0, xm0
 %if HIGH_BIT_DEPTH && mmsize == 16
     STORE16    m0, m0
@@ -2171,11 +2201,11 @@ cglobal predict_16x16_dc_left, 1,3
 %endmacro
 
 INIT_XMM sse2
-PREDICT_16x16_DC
+PREDICT_16x16_DC_CORE
 %if HIGH_BIT_DEPTH
 INIT_YMM avx2
-PREDICT_16x16_DC
+PREDICT_16x16_DC_CORE
 %else
 INIT_XMM avx2
-PREDICT_16x16_DC
+PREDICT_16x16_DC_CORE
 %endif

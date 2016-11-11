@@ -30,10 +30,6 @@
 
 #include "x264cli.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 /* options that are used by only some demuxers */
 typedef struct
 {
@@ -139,9 +135,7 @@ typedef struct
 {
     int align_mask;
 #ifdef _WIN32
-    BOOL (WINAPI *prefetch_virtual_memory)( HANDLE, ULONG_PTR, PVOID, ULONG );
-    HANDLE process_handle;
-    HANDLE map_handle;
+    void *map_handle;
 #elif HAVE_MMAP
     int fd;
 #endif
