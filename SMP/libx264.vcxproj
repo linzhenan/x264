@@ -45,6 +45,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{20179127-853B-4FE9-B7C0-9E817E6A3A72}</ProjectGuid>
     <RootNamespace>libx264</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -161,9 +162,9 @@
     <CustomBuildAfterTargets>Clean</CustomBuildAfterTargets>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IntDir>$(SolutionDir)obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+    <IntDir>obj\$(Configuration)\$(Platform)\$(ProjectName)</IntDir>
     <TargetName>libx264d</TargetName>
-    <OutDir>$(ProjectDir)..\..\..\msvc\</OutDir>
+    <OutDir>..\..\msvc\lib\$(Platform)</OutDir>
     <CustomBuildAfterTargets>Clean</CustomBuildAfterTargets>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugDLL|Win32'">
@@ -193,9 +194,9 @@
     <CustomBuildAfterTargets>Clean</CustomBuildAfterTargets>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IntDir>$(SolutionDir)obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+    <IntDir>obj\$(Configuration)\$(Platform)\$(ProjectName)</IntDir>
     <TargetName>libx264</TargetName>
-    <OutDir>$(ProjectDir)..\..\..\msvc\</OutDir>
+    <OutDir>..\..\msvc\lib\$(Platform)</OutDir>
     <CustomBuildAfterTargets>Clean</CustomBuildAfterTargets>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseLTO|x64'">
@@ -297,14 +298,14 @@ del /f /q $(OutDir)\licenses\x264.txt
       <ExceptionHandling>false</ExceptionHandling>
       <WarningLevel>Level3</WarningLevel>
       <DisableSpecificWarnings>4996;4244;4267;4003;4018;4305;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <ProgramDataBaseFileName>$(OutDir)\lib\x64\$(TargetName).pdb</ProgramDataBaseFileName>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <BasicRuntimeChecks>StackFrameRuntimeCheck</BasicRuntimeChecks>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <OutputFile>$(OutDir)\lib\x64\$(TargetName)$(TargetExt)</OutputFile>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <TargetMachine>MachineX64</TargetMachine>
       <SubSystem>Windows</SubSystem>
     </Lib>
@@ -334,11 +335,11 @@ del $(OutDir)\include\x264_config.h
 )</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>mkdir $(OutDir)\include
-copy ..\x264.h $(OutDir)\include
-copy .\x264_config.h $(OutDir)\include
-mkdir $(OutDir)\licenses
-copy ..\COPYING $(OutDir)\licenses\x264.txt</Command>
+      <Command>mkdir $(OutDir)include
+copy ..\x264.h $(OutDir)include
+copy .\x264_config.h $(OutDir)include
+mkdir $(OutDir)licenses
+copy ..\COPYING $(OutDir)licenses\x264.txt</Command>
     </PostBuildEvent>
     <CustomBuildStep>
       <Message>Custom Clean Step</Message>
@@ -680,7 +681,7 @@ del /f /q $(OutDir)\licenses\x264.txt
       <InterproceduralOptimization>SingleFile</InterproceduralOptimization>
       <WarningLevel>Level3</WarningLevel>
       <DisableSpecificWarnings>4996;4244;4267;4003;4018;4305;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <ProgramDataBaseFileName>$(OutDir)\lib\x64\$(TargetName).pdb</ProgramDataBaseFileName>
+      <ProgramDataBaseFileName>$(OutDir)$(TargetName).pdb</ProgramDataBaseFileName>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -688,7 +689,7 @@ del /f /q $(OutDir)\licenses\x264.txt
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <Lib>
-      <OutputFile>$(OutDir)\lib\x64\$(TargetName)$(TargetExt)</OutputFile>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <TargetMachine>MachineX64</TargetMachine>
       <SubSystem>Windows</SubSystem>
     </Lib>
@@ -718,11 +719,11 @@ del $(OutDir)\include\x264_config.h
 )</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>mkdir $(OutDir)\include
-copy ..\x264.h $(OutDir)\include
-copy .\x264_config.h $(OutDir)\include
-mkdir $(OutDir)\licenses
-copy ..\COPYING $(OutDir)\licenses\x264.txt</Command>
+      <Command>mkdir $(OutDir)include
+copy ..\x264.h $(OutDir)include
+copy .\x264_config.h $(OutDir)include
+mkdir $(OutDir)licenses
+copy ..\COPYING $(OutDir)licenses\x264.txt</Command>
     </PostBuildEvent>
     <CustomBuildStep>
       <Message>Custom Clean Step</Message>
