@@ -1847,6 +1847,46 @@ if( cond )\
     goto fail;\
 }
 
+#if X264_ROI
+void quant_offsets_free(void *p)
+{
+    free(p);
+}
+void get_roi_info(int frame, char **roi_info, size_t *size)
+{
+    char filename[1024];
+    *roi_info = NULL;
+    *size = 0;
+
+    sprintf(filename, "%d.txt", frame);
+    FILE *pf = fopen(filename, "r");
+    if (!pf) goto fail;
+
+    fseek(pf, 0, SEEK_END);
+    *size = ftell(pf);
+    *roi_info = (char*)malloc(sizeof(char) * (*size));
+    if (!*roi_info) goto fail;
+
+    fread(*roi_info, *size, 1, pf);
+
+    return;
+
+fail:
+    if (*roi_info)
+        free(*roi_info);
+    *roi_info = NULL;
+    *size = 0;
+    if (pf)
+        fclose(pf);
+}
+void convert_roi_info_to_quant_offsets(x264_t *h, float **quant_offsets, char *roi_info, size_t size)
+{
+    if (!roi_info || !size)
+        return;
+
+
+}
+#endif
 static int encode( x264_param_t *param, cli_opt_t *opt )
 {
     x264_t *h = NULL;
@@ -1919,7 +1959,18 @@ static int encode( x264_param_t *param, cli_opt_t *opt )
             break;
         x264_picture_init( &pic );
         convert_cli_to_lib_pic( &pic, &cli_pic );
-
+#if X264_ROI
+        pic.prop.quant_offsets = (float*)malloc(sizeof(float) * h->mb.i_mb_count);
+        pic.prop.quant_offsets_free = quant_offsets_free;
+        char *roi_info = NULL;
+        size_t roi_info_size = 0;
+        get_roi_info(i_frame + opt->i_seek, &roi_info, &roi_info_size);
+        convert_roi_info_to_quant_offsets(h, pic.prop.quant_offsets, roi_info, roi_info_size);
+        if (roi_info)
+            free(roi_info);
+        roi_info = NULL;
+        roi_info_size = 0;
+#endif
         if( !param->b_vfr_input )
             pic.i_pts = i_frame;
 
