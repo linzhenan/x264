@@ -1858,7 +1858,7 @@ void get_roi_info(int frame, char **roi_info, size_t *size)
     *roi_info = NULL;
     *size = 0;
 
-    sprintf(filename, "%d.txt", frame);
+    sprintf(filename, "D:\\ROI\\roi_info\\image-%03d.log", frame + 1);
     FILE *pf = fopen(filename, "r");
     if (!pf) goto fail;
 
@@ -1867,24 +1867,132 @@ void get_roi_info(int frame, char **roi_info, size_t *size)
     *roi_info = (char*)malloc(sizeof(char) * (*size));
     if (!*roi_info) goto fail;
 
+    fseek(pf, 0, SEEK_SET);
     fread(*roi_info, *size, 1, pf);
 
     return;
 
 fail:
-    if (*roi_info)
-        free(*roi_info);
+    if (*roi_info) free(*roi_info);
     *roi_info = NULL;
     *size = 0;
-    if (pf)
-        fclose(pf);
+    if (pf) fclose(pf);
 }
-void convert_roi_info_to_quant_offsets(x264_t *h, float **quant_offsets, char *roi_info, size_t size)
+enum ATTRIBUTE
 {
-    if (!roi_info || !size)
+    INVALID = 0,
+    AXIS_X,
+    AXIS_Y,
+    FACE_TOP,
+    FACE_WIDTH,
+    FACE_LEFT,
+    FACE_HEIGHT,
+};
+void convert_roi_info_to_quant_offsets(x264_t *h, float *quant_offsets, char *roi_info, size_t size)
+{
+    if (!h || !quant_offsets || !roi_info || !size)
         return;
 
+    int attr = INVALID;
+    int num = 0;
+    int b_complete = 1;
+    int b_pair = 0;
 
+    int cnt = 0;
+#define LANDMARK_NUM 83
+    int axis_x[LANDMARK_NUM] = { 0 };
+    int axis_y[LANDMARK_NUM] = { 0 };
+#undef LANDMARK_NUM
+    int face_x, face_y, face_w, face_h;
+
+    for (int pos = 0; pos < size; pos++)
+    {
+        if (roi_info[pos] == '"')
+        {
+            b_complete = !b_complete;
+            continue;
+        }
+        if (attr != INVALID)
+        {
+            if (' ' == roi_info[pos] || ':' == roi_info[pos])
+                continue;
+            else if ('0' <= roi_info[pos] && roi_info[pos] <= '9')
+            {
+                num = num * 10 + roi_info[pos] - '0';
+                continue;
+            }
+            else
+            {
+                switch (attr)
+                {
+                case AXIS_X: axis_x[cnt] = num; break;
+                case AXIS_Y: axis_y[cnt] = num; break;
+                case FACE_TOP: face_y = num; break;
+                case FACE_LEFT: face_x = num; break;
+                case FACE_WIDTH: face_w = num; break;
+                case FACE_HEIGHT: face_h = num; break;
+                }
+                if (attr == AXIS_X || attr == AXIS_Y)
+                {
+                    if (!b_pair)
+                        b_pair = !b_pair;
+                    else
+                    {
+                        b_pair = !b_pair;
+                        cnt++;
+                    }
+                }
+                attr = INVALID;
+                num = 0;
+            }
+        }
+        if (!b_complete)
+        {
+            if (strncasecmp(&roi_info[pos], "x", min(1, size - pos)) == 0           && roi_info[pos + 1] == '"') { attr = AXIS_X; pos += 1; }
+            else if (strncasecmp(&roi_info[pos], "y", min(1, size - pos)) == 0      && roi_info[pos + 1] == '"') { attr = AXIS_Y; pos += 1; }
+            else if (strncasecmp(&roi_info[pos], "top", min(3, size - pos)) == 0    && roi_info[pos + 3] == '"') { attr = FACE_TOP; pos += 3; }
+            else if (strncasecmp(&roi_info[pos], "width", min(5, size - pos)) == 0  && roi_info[pos + 5] == '"') { attr = FACE_WIDTH; pos += 5; }
+            else if (strncasecmp(&roi_info[pos], "left", min(4, size - pos)) == 0   && roi_info[pos + 4] == '"') { attr = FACE_LEFT; pos += 4; }
+            else if (strncasecmp(&roi_info[pos], "height", min(6, size - pos)) == 0 && roi_info[pos + 6] == '"') { attr = FACE_HEIGHT; pos += 6; }
+            if (attr)
+                b_complete = 1;
+        }
+    }
+
+    memset(quant_offsets, 0, sizeof(float) * h->mb.i_mb_count);
+
+    float offset = 0.0;
+
+#define X2MBX(x) (x >> 4)
+#define Y2MBY(y) (y >> 4)
+#define XY2MBXY(x, y) (Y2MBY(y) * h->mb.i_mb_width + X2MBX(x))
+    for (int idx = 0; idx < cnt; idx++)
+    {
+        quant_offsets[XY2MBXY(axis_x[idx], axis_y[idx])] -= 2.0;
+        offset += 2.0;
+    }
+#undef X2MBX
+#undef Y2MBY
+#undef XY2MBXY
+
+    int mb_x0 = face_x >> 4;
+    int mb_y0 = face_y >> 4;
+    int mb_x1 = (face_x + face_w + 15) >> 4;
+    int mb_y1 = (face_y + face_h + 15) >> 4;
+#define MBXY2MBXY(mb_x, mb_y) (mb_y * h->mb.i_mb_width + mb_x)
+    for (int mb_y = mb_y0; mb_y <= mb_y1; mb_y++)
+    {
+        for (int mb_x = mb_x0; mb_x <= mb_x1; mb_x++)
+        {
+            quant_offsets[MBXY2MBXY(mb_x, mb_y)] -= 2.0;
+            offset += 2.0;
+        }
+    }
+#undef MBXY2MBXY
+
+    offset /= h->mb.i_mb_count;
+    for (int mb_idx = 0; mb_idx < h->mb.i_mb_count; mb_idx++)
+        quant_offsets[mb_idx] += offset;
 }
 #endif
 static int encode( x264_param_t *param, cli_opt_t *opt )
@@ -1962,14 +2070,15 @@ static int encode( x264_param_t *param, cli_opt_t *opt )
 #if X264_ROI
         pic.prop.quant_offsets = (float*)malloc(sizeof(float) * h->mb.i_mb_count);
         pic.prop.quant_offsets_free = quant_offsets_free;
-        char *roi_info = NULL;
-        size_t roi_info_size = 0;
-        get_roi_info(i_frame + opt->i_seek, &roi_info, &roi_info_size);
-        convert_roi_info_to_quant_offsets(h, pic.prop.quant_offsets, roi_info, roi_info_size);
-        if (roi_info)
-            free(roi_info);
-        roi_info = NULL;
-        roi_info_size = 0;
+        if (pic.prop.quant_offsets)
+        {
+            char *roi_info = NULL;
+            size_t roi_info_size = 0;
+            get_roi_info(i_frame + opt->i_seek, &roi_info, &roi_info_size);
+            convert_roi_info_to_quant_offsets(h, pic.prop.quant_offsets, roi_info, roi_info_size);
+            if (roi_info)
+                free(roi_info);
+        }
 #endif
         if( !param->b_vfr_input )
             pic.i_pts = i_frame;
