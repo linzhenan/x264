@@ -1858,7 +1858,7 @@ void get_roi_info(int frame, char **roi_info, size_t *size)
     *roi_info = NULL;
     *size = 0;
 
-    sprintf(filename, "D:\\ROI\\roi_info\\image-%03d.log", frame + 1);
+    sprintf(filename, "..\\ROI\\352x288Foreman_txt\\image-%03d.txt", frame + 1);
     FILE *pf = fopen(filename, "r");
     if (!pf) goto fail;
 
@@ -1903,7 +1903,7 @@ void convert_roi_info_to_quant_offsets(x264_t *h, float *quant_offsets, char *ro
     int axis_x[LANDMARK_NUM] = { 0 };
     int axis_y[LANDMARK_NUM] = { 0 };
 #undef LANDMARK_NUM
-    int face_x, face_y, face_w, face_h;
+    int face_x, face_y, face_w, face_h, face_cnt = 0;
 
     for (int pos = 0; pos < size; pos++)
     {
@@ -1955,7 +1955,11 @@ void convert_roi_info_to_quant_offsets(x264_t *h, float *quant_offsets, char *ro
             else if (strncasecmp(&roi_info[pos], "left", min(4, size - pos)) == 0   && roi_info[pos + 4] == '"') { attr = FACE_LEFT; pos += 4; }
             else if (strncasecmp(&roi_info[pos], "height", min(6, size - pos)) == 0 && roi_info[pos + 6] == '"') { attr = FACE_HEIGHT; pos += 6; }
             if (attr)
+            {
                 b_complete = 1;
+                if (attr > 2)
+                    face_cnt++;
+            }
         }
     }
 
@@ -1975,24 +1979,30 @@ void convert_roi_info_to_quant_offsets(x264_t *h, float *quant_offsets, char *ro
 #undef Y2MBY
 #undef XY2MBXY
 
-    int mb_x0 = face_x >> 4;
-    int mb_y0 = face_y >> 4;
-    int mb_x1 = (face_x + face_w + 15) >> 4;
-    int mb_y1 = (face_y + face_h + 15) >> 4;
-#define MBXY2MBXY(mb_x, mb_y) (mb_y * h->mb.i_mb_width + mb_x)
-    for (int mb_y = mb_y0; mb_y <= mb_y1; mb_y++)
+    if (face_cnt == 4)
     {
-        for (int mb_x = mb_x0; mb_x <= mb_x1; mb_x++)
+        int mb_x0 = face_x >> 4;
+        int mb_y0 = face_y >> 4;
+        int mb_x1 = (face_x + face_w + 15) >> 4;
+        int mb_y1 = (face_y + face_h + 15) >> 4;
+#define CLIP3(curVal, minVal, maxVal) ((curVal) < (minVal) ? (minVal) : ((curVal) > (maxVal) ? maxVal : curVal));
+        mb_x1 = CLIP3(mb_x1, 0, h->mb.i_mb_width - 1);
+        mb_y1 = CLIP3(mb_y1, 0, h->mb.i_mb_height - 1);
+#undef CLIP3
+        for (int mb_y = mb_y0; mb_y <= mb_y1; mb_y++)
         {
-            quant_offsets[MBXY2MBXY(mb_x, mb_y)] -= 2.0;
-            offset += 2.0;
+            for (int mb_x = mb_x0; mb_x <= mb_x1; mb_x++)
+            {
+                int mb_xy = mb_x + mb_y*h->mb.i_mb_stride;
+                quant_offsets[mb_xy] -= 2.0;
+                offset += 2.0;
+            }
         }
     }
-#undef MBXY2MBXY
 
     offset /= h->mb.i_mb_count;
-    for (int mb_idx = 0; mb_idx < h->mb.i_mb_count; mb_idx++)
-        quant_offsets[mb_idx] += offset;
+    for (int mb_xy = 0; mb_xy < h->mb.i_mb_count; mb_xy++)
+        quant_offsets[mb_xy] += offset;
 }
 #endif
 static int encode( x264_param_t *param, cli_opt_t *opt )
