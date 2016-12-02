@@ -1966,14 +1966,19 @@ void convert_roi_info_to_quant_offsets(x264_t *h, float *quant_offsets, char *ro
     memset(quant_offsets, 0, sizeof(float) * h->mb.i_mb_count);
 
     float offset = 0.0;
+    const float roi_offset = 2.0;
+    int roi_mb_count = 0;
 
 #define X2MBX(x) (x >> 4)
 #define Y2MBY(y) (y >> 4)
 #define XY2MBXY(x, y) (Y2MBY(y) * h->mb.i_mb_width + X2MBX(x))
     for (int idx = 0; idx < cnt; idx++)
     {
-        quant_offsets[XY2MBXY(axis_x[idx], axis_y[idx])] -= 2.0;
-        offset += 2.0;
+        int mb_xy = XY2MBXY(axis_x[idx], axis_y[idx]);
+        if (!quant_offsets[mb_xy])
+            roi_mb_count++;
+        quant_offsets[mb_xy] -= roi_offset;
+        offset += roi_offset;
     }
 #undef X2MBX
 #undef Y2MBY
@@ -1994,15 +1999,22 @@ void convert_roi_info_to_quant_offsets(x264_t *h, float *quant_offsets, char *ro
             for (int mb_x = mb_x0; mb_x <= mb_x1; mb_x++)
             {
                 int mb_xy = mb_x + mb_y*h->mb.i_mb_stride;
-                quant_offsets[mb_xy] -= 2.0;
-                offset += 2.0;
+                if (!quant_offsets[mb_xy])
+                    roi_mb_count++;
+                quant_offsets[mb_xy] -= roi_offset;
+                offset += roi_offset;
             }
         }
     }
 
-    offset /= h->mb.i_mb_count;
-    for (int mb_xy = 0; mb_xy < h->mb.i_mb_count; mb_xy++)
-        quant_offsets[mb_xy] += offset;
+    if (roi_mb_count)
+    {
+        offset *= 6.0;
+        offset /= h->mb.i_mb_count - roi_mb_count;
+        for (int mb_xy = 0; mb_xy < h->mb.i_mb_count; mb_xy++)
+            if (!quant_offsets[mb_xy])
+                quant_offsets[mb_xy] += offset;
+    }
 }
 #endif
 static int encode( x264_param_t *param, cli_opt_t *opt )
