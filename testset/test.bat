@@ -12,7 +12,7 @@ set videofps=15
 ::encode YUV
 set bitrate=500k
 
-set ffmpeg_cfg=
+set ffmpeg_cfg=-re -psnr ::input video at output framerate & calc PSNR
 set ffmpeg_opt=-preset medium -b:v %bitrate%
 
 set x264opts_opt=keyint=60:deblock=2,2:bframes=3:b-adapt=0:scenecut=0:weightp=1:rc-lookahead=20

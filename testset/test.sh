@@ -18,7 +18,7 @@ videofps="15"
 bitrate="500k"
 
 #ffmpeg_cfg="-threads 1"
-ffmpeg_cfg="-re" #input video at output framerate
+ffmpeg_cfg="-re -psnr" #input video at output framerate & calc PSNR
 ffmpeg_opt="-preset medium -b:v "${bitrate}
 
 #x264opts_opt="keyint=60:deblock=2,2:threads=1:lookahead-threads=1:bframes=3:b-adapt=0:scenecut=0:weightp=1:rc-lookahead=20"

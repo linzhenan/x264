@@ -1,2 +1,0 @@
-
-{"image_id": "CFt+v7iMFxMGO4/9wv0dfg==", "request_id": "1480734143,e1f5da5f-2815-4268-bc88-18cd9ba054ee", "time_used": 147, "faces": []}
